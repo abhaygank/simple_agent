@@ -1,0 +1,112 @@
+import random
+
+class GridEnvironment:
+    def __init__(self, rows, cols, num_obstacles, num_tasks):
+        self.rows = rows
+        self.cols = cols
+        self.grid = [[' ' for _ in range(cols)] for _ in range(rows)]
+        self.place_obstacles(num_obstacles)
+        self.place_tasks(num_tasks)
+        self.agent_pos = self.place_agent()
+
+    def place_obstacles(self, num_obstacles):
+        count = 0
+        while count < num_obstacles:
+            r = random.randint(0, self.rows - 1)
+            c = random.randint(0, self.cols - 1)
+            if self.grid[r][c] == ' ':
+                self.grid[r][c] = 'X'  # Obstacle
+                count += 1
+
+    def place_tasks(self, num_tasks):
+        count = 0
+        while count < num_tasks:
+            r = random.randint(0, self.rows - 1)
+            c = random.randint(0, self.cols - 1)
+            if self.grid[r][c] == ' ':
+                self.grid[r][c] = 'T'  # Task
+                count += 1
+
+    def place_agent(self):
+        while True:
+            r = random.randint(0, self.rows - 1)
+            c = random.randint(0, self.cols - 1)
+            if self.grid[r][c] == ' ':
+                self.grid[r][c] = 'A'
+                return (r, c)
+
+    def display(self):
+        for row in self.grid:
+            print(' '.join(row))
+        print()
+
+    def update_agent_pos(self, new_pos):
+        r, c = self.agent_pos
+        self.grid[r][c] = ' '
+        nr, nc = new_pos
+        self.grid[nr][nc] = 'A'
+        self.agent_pos = (nr, nc)
+
+    def get_percepts(self):
+        r, c = self.agent_pos
+        percepts = {}
+        directions = {'UP': (r-1, c), 'DOWN': (r+1, c), 'LEFT': (r, c-1), 'RIGHT': (r, c+1)}
+        for dir, (nr, nc) in directions.items():
+            if 0 <= nr < self.rows and 0 <= nc < self.cols:
+                percepts[dir] = self.grid[nr][nc]
+            else:
+                percepts[dir] = 'X'  # Treat out-of-bounds as obstacle
+        return percepts
+
+class SimpleReflexAgent:
+    def __init__(self, environment):
+        self.env = environment
+
+    def choose_action(self):
+        percepts = self.env.get_percepts()
+        # If task is adjacent, move to it
+        for direction, value in percepts.items():
+            if value == 'T':
+                return direction
+        # Otherwise, move to a random free cell
+        free_dirs = [d for d, v in percepts.items() if v == ' ']
+        if free_dirs:
+            return random.choice(free_dirs)
+        return None  # No move possible
+
+    def act(self):
+        action = self.choose_action()
+        if action:
+            r, c = self.env.agent_pos
+            if action == 'UP':
+                new_pos = (r-1, c)
+            elif action == 'DOWN':
+                new_pos = (r+1, c)
+            elif action == 'LEFT':
+                new_pos = (r, c-1)
+            elif action == 'RIGHT':
+                new_pos = (r, c+1)
+            self.env.update_agent_pos(new_pos)
+            return True
+        return False
+
+def main():
+    rows, cols = 6, 6
+    num_obstacles = 8
+    num_tasks = 3
+    env = GridEnvironment(rows, cols, num_obstacles, num_tasks)
+    agent = SimpleReflexAgent(env)
+    steps = 0
+    while True:
+        env.display()
+        if all('T' not in row for row in env.grid):
+            print(f"All tasks completed in {steps} steps!")
+            break
+        moved = agent.act()
+        steps += 1
+        if not moved:
+            print("Agent is stuck! Game over.")
+            break
+
+if __name__ == "__main__":
+    main()
